@@ -38,28 +38,35 @@ function Plugin(options) {
 // hook into webpack
 Plugin.prototype.apply = function(compiler) {
   var self = this;
-  return compiler.plugin('done', function() {
+  var plugin = {
+    name: 'CrxWebpackPlugin'
+  };
+  return compiler.hooks.afterEmit.tapAsync(plugin, (compilation, callback) => {
     self.package.call(self);
+    callback();
   });
 }
 
 // package the extension
 Plugin.prototype.package = function() {
   var self = this;
-  self.crx.load(self.contentPath).then(function() {
-    self.crx.pack().then(function(buffer) {
+  self.crx.load(self.contentPath)
+    .then(crx => crx.pack())
+    .then(crxBuffer => {
       mkdirp(self.outputPath, function(err) {
         if (err) throw(err)
         var updateXML = self.crx.generateUpdateXML();
         fs.writeFile(self.updateFile, updateXML, function(err, result) {
           if(err) console.log('error', err);
         });
-        fs.writeFile(self.crxFile, buffer, function(err, result) {
+        fs.writeFile(self.crxFile, crxBuffer, function(err, result) {
           if(err) console.log('error', err);
         });
       });
+    })
+    .catch(err=>{
+      console.error( err );
     });
-  });
 }
 
 module.exports = Plugin;
